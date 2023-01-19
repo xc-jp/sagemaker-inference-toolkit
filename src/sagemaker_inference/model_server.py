@@ -52,7 +52,7 @@ REQUIREMENTS_PATH = os.path.join(code_dir, "requirements.txt")
 MMS_NAMESPACE = "com.amazonaws.ml.mms.ModelServer"
 
 
-def start_model_server(handler_service=DEFAULT_HANDLER_SERVICE):
+def start_model_server(handler_service=DEFAULT_HANDLER_SERVICE, configuration=None):
     """Configure and start the model server.
 
     Args:
@@ -77,7 +77,7 @@ def start_model_server(handler_service=DEFAULT_HANDLER_SERVICE):
 
     # Note: multi-model default config already sets default_service_handler
     handler_service_for_config = None if ENABLE_MULTI_MODEL else handler_service
-    _create_model_server_config_file(env, handler_service_for_config)
+    _create_model_server_config_file(env, configuration, handler_service_for_config)
 
     if os.path.exists(REQUIREMENTS_PATH):
         _install_requirements()
@@ -147,13 +147,13 @@ def _set_python_path():
         os.environ[PYTHON_PATH_ENV] = code_dir_path
 
 
-def _create_model_server_config_file(env, handler_service=None):
-    configuration_properties = _generate_mms_config_properties(env, handler_service)
+def _create_model_server_config_file(env, config, handler_service=None):
+    configuration_properties = _generate_mms_config_properties(env, config, handler_service)
 
     utils.write_file(MMS_CONFIG_FILE, configuration_properties)
 
 
-def _generate_mms_config_properties(env, handler_service=None):
+def _generate_mms_config_properties(env, config, handler_service=None):
     user_defined_configuration = {
         "default_response_timeout": env.model_server_timeout,
         "default_workers_per_model": env.model_server_workers,
@@ -161,6 +161,8 @@ def _generate_mms_config_properties(env, handler_service=None):
         "management_address": "http://0.0.0.0:{}".format(env.management_http_port),
         "vmargs": "-XX:-UseContainerSupport",
     }
+    if config is not None:
+        user_defined_configuration.update(config)
     # If provided, add handler service to user config
     if handler_service:
         user_defined_configuration["default_service_handler"] = handler_service
